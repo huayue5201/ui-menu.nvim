@@ -55,6 +55,8 @@ should_replace = function(_, _) return true end
 
 - `M.select(items, opts, on_choice)`：同 `vim.ui.select`，返回是否成功打开
 - `opts.tick = true|number`：动画模式，`format_item(item, frame)` 第二参递增
+- `opts.position = "center"`：固定屏幕居中，不跟随光标
+- `opts.on_tab = fun()`：菜单里按 `<Tab>` 时关闭菜单并调用它（例如地图 ⇄ 列表切换）
 - `format_item` 返回第二值 `virt_text`：`{ {text, hl}, ... }` 挂在行尾
 - 结构化条目：`name/text/label` + `icon/icon_hl/name_hl`
 - `M.spinner(frames?)`、`M.frames`、`M.config` 供外部复用

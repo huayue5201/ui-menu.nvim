@@ -538,10 +538,7 @@ local unlabeled = table.concat(marks_by_line[20] or {}, ",")
 check(labeled == "4,5,6", "第 1 行高亮列应为 4,5,6，实际 " .. labeled)
 check(unlabeled == "4,5,6", "第 21 行高亮列也应为 4,5,6，实际 " .. unlabeled)
 -- 快照时已输入 "abc"，处于输入模式：序号压成注释色，不冒充快捷键
-check(
-	snap.label_hl[0] == "UiMenuLabelDim",
-	"输入模式下序号应变暗，实际 " .. tostring(snap.label_hl[0])
-)
+check(snap.label_hl[0] == "UiMenuLabelDim", "输入模式下序号应变暗，实际 " .. tostring(snap.label_hl[0]))
 
 for _, b in ipairs(vim.api.nvim_list_bufs()) do
 	check(
@@ -693,6 +690,66 @@ for _, f in ipairs(frames15) do
 end
 check(maxf15 >= 2, "帧号应递增（spinner 才会转），max=" .. maxf15)
 check(monotone15, "动画模式下 format_item 每次都应拿到数字帧号")
+
+----------------------------------------------------------------------
+-- 12. position = "center" 固定居中，不跟随光标
+----------------------------------------------------------------------
+
+local centered
+local orig_rk_center = menu._read_key
+menu._read_key = function()
+	for _, w in ipairs(vim.api.nvim_list_wins()) do
+		local cfg = vim.api.nvim_win_get_config(w)
+		local text = ""
+		if cfg.title then
+			for _, chunk in ipairs(cfg.title) do
+				text = text .. chunk[1]
+			end
+		end
+		if text == "Center: " then
+			centered = cfg
+		end
+	end
+	return kc("<Esc>")
+end
+menu.select({ "a", "b" }, { prompt = "Center: ", position = "center" }, function() end)
+menu._read_key = orig_rk_center
+
+check(centered ~= nil, "居中选择应打开浮窗")
+if centered then
+	local want_row = math.floor((vim.go.lines - centered.height) / 2) + 1
+	local want_col = math.floor((vim.go.columns - centered.width) / 2)
+	check(
+		centered.row == want_row,
+		("菜单应固定在屏幕中间行（want=%d got=%d）"):format(want_row, centered.row)
+	)
+	check(
+		centered.col == want_col,
+		("菜单应固定在屏幕中间列（want=%d got=%d）"):format(want_col, centered.col)
+	)
+end
+
+----------------------------------------------------------------------
+-- 13. on_tab：列表里按 <Tab> 交给调用方（地图 ⇄ 列表）
+----------------------------------------------------------------------
+
+local switched = false
+local orig_rk_tab = menu._read_key
+menu._read_key = function()
+	return kc("<Tab>")
+end
+local selected_tab = false
+menu.select({ "a", "b" }, {
+	prompt = "Tab: ",
+	on_tab = function()
+		switched = true
+	end,
+}, function()
+	selected_tab = true
+end)
+menu._read_key = orig_rk_tab
+check(switched, "按 <Tab> 应调用 on_tab")
+check(not selected_tab, "按 <Tab> 不应触发选择回调")
 
 ----------------------------------------------------------------------
 -- 收尾

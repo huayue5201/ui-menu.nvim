@@ -80,7 +80,7 @@ M.config = {
 
 -- 默认 spinner 帧（盲文点阵，与 LSP 进度同类；任意等宽字符都行）
 -- M.frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-M.frames= {
+M.frames = {
 	"",
 	"",
 	"",
@@ -485,13 +485,7 @@ local function render_input(state)
 	end
 
 	-- 前缀 " ❯ " 的 ❯ 在字节 1..3（索引模式的 " # " 只有一个字节）
-	api.nvim_buf_set_extmark(
-		state.input_buf,
-		ns,
-		0,
-		1,
-		{ end_col = index_mode and 2 or 4, hl_group = "UiMenuLabel" }
-	)
+	api.nvim_buf_set_extmark(state.input_buf, ns, 0, 1, { end_col = index_mode and 2 or 4, hl_group = "UiMenuLabel" })
 	local text_start = #prefix
 	if index_mode and state.num ~= "" then
 		-- 数字直接上色：越界（或 0）标红，用户不用按 <CR> 才知道敲错了
@@ -618,8 +612,16 @@ local function render(state)
 	if col + width > vim.go.columns then
 		col = math.max(left, vim.go.columns - width - 1)
 	end
+	if state.center then
+		-- 固定居中：不跟随光标，也不受左右窗口边界影响
+		row = math.max(1, math.floor((vim.go.lines - height) / 2) + 1)
+		col = math.max(1, math.floor((vim.go.columns - width) / 2))
+	end
 	state.left = left
 	row = math.max(1, math.min(row, vim.go.lines - height - 1))
+	if state.center then
+		col = math.max(1, math.min(col, vim.go.columns - width - 1))
+	end
 	-- 之后 input / help 浮窗都按菜单的实际位置摆（state.pos 只是光标锚点）
 	state.row, state.col, state.height, state.width = row, col, height, width
 
@@ -841,6 +843,8 @@ function M.select(items, opts, on_choice)
 		mode = "normal", -- 打开时不进输入模式：j/k 上下，i/f 才输入
 		formatted = opts.format_item,
 		sel = 1,
+		center = opts.position == "center",
+		on_tab = type(opts.on_tab) == "function" and opts.on_tab or nil,
 		pos = anchor(),
 		-- 动画模式（v1: 只有 opts.tick 一来才开）：帧号每超时一次 +1，传给 format_item
 		tick = (opts.tick == true and M.config.tick) or tonumber(opts.tick) or 0,
@@ -946,7 +950,10 @@ function M.select(items, opts, on_choice)
 				local waiting_g = state.pending_g
 				state.pending_g = false
 
-				if kl == "<esc>" or kl == "<c-c>" then
+				if kl == "<tab>" and state.on_tab then
+					state.switch = true
+					break
+				elseif kl == "<esc>" or kl == "<c-c>" then
 					if state.help then
 						state.help = false -- 帮助开着：先收帮助
 					elseif state.mode == "input" or state.mode == "index" then
@@ -1041,6 +1048,10 @@ function M.select(items, opts, on_choice)
 	M._busy = false
 	if not ok then
 		error(err, 0)
+	end
+	if state.switch and state.on_tab then
+		state.on_tab()
+		return true
 	end
 	if on_choice then
 		if state.choice then

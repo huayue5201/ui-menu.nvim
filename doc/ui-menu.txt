@@ -38,6 +38,8 @@ CONTENTS                                                    *ui-menu*
   original_select                     接管前的 vim.ui.select
 
 opts.tick = true|number 开启动画，format_item(item, frame)。
+opts.position = "center" 固定屏幕居中，不跟随光标。
+opts.on_tab = fun() 菜单里按 <Tab> 时关闭菜单并调用它。
 format_item 的第二返回值 virt_text 挂到行尾。
 结构化条目支持 name/text/label + icon/icon_hl/name_hl。
 
