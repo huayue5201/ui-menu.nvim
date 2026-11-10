@@ -7,24 +7,24 @@ function M.check()
 	if vim.fn.has("nvim-0.10") == 1 then
 		h.ok("Neovim >= 0.10")
 	else
-		h.warn("建议 Neovim >= 0.10")
+		h.warn("Neovim >= 0.10 recommended")
 	end
 
 	local ok, menu = pcall(require, "ui_menu")
 	if not ok then
-		h.error("无法加载 ui_menu: " .. tostring(menu))
+		h.error("failed to load ui_menu: " .. tostring(menu))
 		return
 	end
-	h.ok("模块可加载")
+	h.ok("module loads")
 
 	if menu.config.replace_select then
 		if vim.ui.select ~= menu.select_wrapper then
-			h.error("replace_select=true 但 vim.ui.select 未被接管")
+			h.error("replace_select=true but vim.ui.select was not taken over")
 		else
-			h.ok("vim.ui.select 已被接管")
+			h.ok("vim.ui.select is taken over")
 		end
 	else
-		h.info("replace_select=false（只导出 M.select）")
+		h.info("replace_select=false (only exports M.select)")
 	end
 	h.info(("config: width=%s min_width=%s max_height=%s border=%s tick=%s"):format(
 		menu.config.width,

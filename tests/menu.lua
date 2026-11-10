@@ -47,20 +47,20 @@ end
 ----------------------------------------------------------------------
 
 local items = { "alpha", "beta", "gamma", "delta" }
-check(#menu.filter(items, "", tostring) == 4, "空查询应返回全部")
+check(#menu.filter(items, "", tostring) == 4, "empty query should return all items")
 local hits = menu.filter(items, "ga", tostring)
-check(#hits == 1 and hits[1].text == "gamma", "查询 ga 应命中 gamma")
-check(type(hits[1].positions) == "table" and #hits[1].positions == 2, "命中应带两个高亮位置")
-check(#menu.filter(items, "zzz", tostring) == 0, "无命中应为空")
+check(#hits == 1 and hits[1].text == "gamma", "query ga should match gamma")
+check(type(hits[1].positions) == "table" and #hits[1].positions == 2, "a match should carry two highlight positions")
+check(#menu.filter(items, "zzz", tostring) == 0, "no match should return empty")
 
 ----------------------------------------------------------------------
 -- 2. 标签
 ----------------------------------------------------------------------
 
-check(menu.label(1) == "1" and menu.label(19) == "19", "所有行都带序号（19 以后不会突然没有标签）")
-check(menu.label_width(4) == 2 and menu.label_width(140) == 3, "标签列宽：最少 2 位，按总项数增长")
-check(menu.line(2, "x", 2) == " 2 x", "行文本 = 右对齐序号 + 空格 + 内容")
-check(menu.line(12, "x", 2) == "12 x", "两位数序号占满 2 列时不补空格")
+check(menu.label(1) == "1" and menu.label(19) == "19", "every row has an index (no missing labels after 19)")
+check(menu.label_width(4) == 2 and menu.label_width(140) == 3, "label width: at least 2, grows with item count")
+check(menu.line(2, "x", 2) == " 2 x", "line text = right-aligned index + space + content")
+check(menu.line(12, "x", 2) == "12 x", "two-digit index filling 2 columns gets no padding")
 
 ----------------------------------------------------------------------
 -- 3/4/5. 键位：数字选中、移动、输入过滤、退格、清空、取消
@@ -77,41 +77,41 @@ local function run(keys, given_items, opts)
 end
 
 local r = run("2")
-check(r.called == 1 and r.item == "beta", "按 2 应选中 beta，实际 " .. tostring(r.item))
+check(r.called == 1 and r.item == "beta", "pressing 2 should pick beta, got " .. tostring(r.item))
 
 r = run(kc("<C-n>") .. kc("<C-n>") .. kc("<CR>"))
-check(r.item == "gamma", "两次 <C-n> 后 <CR> 应选中 gamma，实际 " .. tostring(r.item))
+check(r.item == "gamma", "after two <C-n>, <CR> should pick gamma, got " .. tostring(r.item))
 
 r = run(kc("<C-p>") .. kc("<CR>"))
-check(r.item == "delta", "<C-p> 应回绕到末项")
+check(r.item == "delta", "<C-p> should wrap to the last item")
 
 r = run("i" .. "ga" .. kc("<CR>"))
-check(r.item == "gamma", "i 进输入模式后输入 ga 应选中 gamma，实际 " .. tostring(r.item))
+check(r.item == "gamma", "after i enters input mode, typing ga should pick gamma, got " .. tostring(r.item))
 
 r = run("f" .. "ga" .. kc("<CR>"))
-check(r.item == "gamma", "f 也能进输入模式，实际 " .. tostring(r.item))
+check(r.item == "gamma", "f should also enter input mode, got " .. tostring(r.item))
 
 r = run("ga" .. kc("<CR>"))
-check(r.item == "alpha", "导航模式下字母不进入查询（应选第一项），实际 " .. tostring(r.item))
+check(r.item == "alpha", "letters do not enter the query in navigation mode (should pick first), got " .. tostring(r.item))
 
 r = run("jj" .. kc("<CR>"))
-check(r.item == "gamma", "导航模式 j 应下移，实际 " .. tostring(r.item))
+check(r.item == "gamma", "j should move down in navigation mode, got " .. tostring(r.item))
 
 r = run("ijk" .. kc("<C-u>") .. kc("<CR>"))
-check(r.item == "alpha", "输入模式 j/k 是查询字符（<C-u> 清空后应选回第一项）")
+check(r.item == "alpha", "j/k are query characters in input mode (<C-u> clears and should pick first again)")
 
 r = run("i" .. "gm" .. kc("<BS>") .. "amm" .. kc("<CR>"))
-check(r.item == "gamma", "退格后继续输入应仍能命中 gamma，实际 " .. tostring(r.item))
+check(r.item == "gamma", "typing after backspace should still match gamma, got " .. tostring(r.item))
 
 r = run("i" .. "zzz" .. kc("<C-u>") .. kc("<CR>"))
-check(r.item == "alpha", "<C-u> 清空查询后 <CR> 应选回第一项")
+check(r.item == "alpha", "after <C-u> clears the query, <CR> should pick the first item")
 
 r = run(kc("<Esc>"))
-check(r.called == 1 and r.item == nil, "Esc 应回调 (nil, nil)")
+check(r.called == 1 and r.item == nil, "Esc should call back with (nil, nil)")
 
 -- M-<pivot> 已移除：M-s 不再选第 11 项，只剩 1-9 与 <C-g> 索引模式
 r = run(kc("<M-s>") .. kc("<CR>"), { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l" })
-check(r.item == "a", "M-<pivot> 应已失效（停在首项），实际 " .. tostring(r.item))
+check(r.item == "a", "M-<pivot> should be gone (stays on first item), got " .. tostring(r.item))
 
 ----------------------------------------------------------------------
 -- 5b. 提示文本在边框中间（含输入模式标记）
@@ -162,23 +162,23 @@ menu._read_key = function()
 end
 menu.select({ "alpha", "beta" }, { prompt = "Pick: ", format_item = tostring }, function() end)
 menu._read_key = orig_rk_title
-check(#titles >= 2, "应在每次读键前都更新边框标题")
-check(titles[1] and titles[1].text:find("Pick: ", 1, true) ~= nil, "标题应包含 prompt")
-check(titles[1] and titles[1].pos == "center", "标题应居中（title_pos = center）")
+check(#titles >= 2, "border title should update before every key read")
+check(titles[1] and titles[1].text:find("Pick: ", 1, true) ~= nil, "title should contain the prompt")
+check(titles[1] and titles[1].pos == "center", "title should be centered (title_pos = center)")
 -- 输入框是**独立的浮窗**，贴在列表下方；列表本身不再有输入行
 local last_body = bodies[#bodies]
-check(last_body and last_body[1] ~= nil and not last_body[1]:find("❯", 1, true), "列表里不应再有输入行")
+check(last_body and last_body[1] ~= nil and not last_body[1]:find("❯", 1, true), "the list should no longer have an input row")
 local last_input = inputs[#inputs]
-check(last_input ~= nil, "输入模式应有一个独立的输入框浮窗")
+check(last_input ~= nil, "input mode should show a separate input popup")
 check(
 	last_input and last_input.line == " ❯ g ",
-	"输入框内容应为查询文本，实际 " .. tostring(last_input and last_input.line)
+	"input popup content should be the query, got " .. tostring(last_input and last_input.line)
 )
 check(
 	last_input and last_input.cursor[1] == 1 and last_input.cursor[2] == 6,
-	"光标应停在输入框查询末尾（1,6），实际 " .. vim.inspect(last_input and last_input.cursor)
+	"cursor should sit at the end of the query in the input popup (1,6), got " .. vim.inspect(last_input and last_input.cursor)
 )
-check(bodies[1] and bodies[1][1] == "  1 alpha", "导航模式下没有查询行")
+check(bodies[1] and bodies[1][1] == "  1 alpha", "no query row in navigation mode")
 -- 输入框的光标格要有 Cursor 高亮：浮窗里的真光标未必被终端显示，这一格保证位置可见
 local last_marks = (last_input and last_input.hl) or {}
 local has_cursor = false
@@ -187,7 +187,7 @@ for _, g in ipairs(last_marks) do
 		has_cursor = true
 	end
 end
-check(has_cursor, "输入框应有一个 Cursor 高亮的格子标记光标位置")
+check(has_cursor, "input popup should mark the cursor with a Cursor-highlighted cell")
 
 ----------------------------------------------------------------------
 -- 6. 单飞
@@ -204,8 +204,8 @@ menu.select({ "one", "two" }, {}, function(item)
 	feed(kc("<Esc>"))
 	second_result = menu.select({ "x" }, {}, function() end)
 end)
-check(first.called == 1 and first.item == "two", "第一次调用应正常选中")
-check(second_result == true, "菜单结束后应能再次打开")
+check(first.called == 1 and first.item == "two", "first call should pick normally")
+check(second_result == true, "the menu should open again after closing")
 
 -- 真正在菜单开着时重入：用一次嵌套调用模拟（第二次直接返回 false）
 local reentry, reentry_cancelled = nil, false
@@ -222,9 +222,9 @@ menu._read_key = function()
 end
 menu.select({ "outer" }, {}, function() end)
 menu._read_key = orig_read_key
-check(reentry == false, "菜单开着时重入应返回 false（不叠第二层）")
-check(reentry_cancelled, "被拒的请求应收到 nil 回调，调用方不会挂死")
-check(menu._busy == false, "菜单结束后 _busy 应复位")
+check(reentry == false, "re-entry while open should return false (no second layer)")
+check(reentry_cancelled, "rejected request should get a nil callback so callers do not hang")
+check(menu._busy == false, "_busy should reset after the menu closes")
 
 ----------------------------------------------------------------------
 -- 6b. 浮窗被外部关掉：循环必须立刻结束，不能变成"看不见的菜单"继续吃键
@@ -255,9 +255,9 @@ end)
 menu._read_key = orig_read_key_6b
 -- WinClosed 会往队列里塞一个 Esc 用来解除阻塞；这里是模拟关闭，Esc 没人消费，先冲掉
 pcall(vim.fn.feedkeys, "", "x")
-check(ext.n == 1, "浮窗被外部关闭后应结束并回调一次，实际回调 " .. ext.n .. " 次")
-check(ext.item == nil, "外部关闭应视为取消（回调 nil）")
-check(menu._busy == false, "外部关闭后 _busy 应复位")
+check(ext.n == 1, "external close should end the menu with exactly one callback, got " .. ext.n .. " callbacks")
+check(ext.item == nil, "external close should count as cancel (callback nil)")
+check(menu._busy == false, "_busy should reset after external close")
 
 ----------------------------------------------------------------------
 -- 6c. Esc 的两段语义：输入模式 -> 导航模式 -> 取消
@@ -265,20 +265,20 @@ check(menu._busy == false, "外部关闭后 _busy 应复位")
 
 -- 第一次 Esc 只退出输入模式（查询保留），第二次 Esc 才取消
 r = run("i" .. "ga" .. kc("<Esc>") .. kc("<Esc>"))
-check(r.called == 1 and r.item == nil, "输入模式连按两次 Esc 才取消，实际 " .. tostring(r.item))
+check(r.called == 1 and r.item == nil, "Esc twice from input mode cancels, got " .. tostring(r.item))
 
 -- 退出输入模式后查询仍在：Esc 之后按 <CR> 应选中过滤后的第一项（gamma）
 r = run("i" .. "ga" .. kc("<Esc>") .. kc("<CR>"))
-check(r.item == "gamma", "Esc 退出输入模式应保留查询（gamma），实际 " .. tostring(r.item))
+check(r.item == "gamma", "Esc leaving input mode keeps the query (gamma), got " .. tostring(r.item))
 
 -- 退出输入模式后 j/k 恢复为移动
 r = run("i" .. kc("<Esc>") .. "j" .. kc("<CR>"))
-check(r.item == "beta", "Esc 之后 j 应恢复为移动，实际 " .. tostring(r.item))
+check(r.item == "beta", "after Esc, j should move again, got " .. tostring(r.item))
 
 -- 浮窗用 enter=true 才能画真光标，关掉后必须把焦点还给原窗口
 local before_win = vim.api.nvim_get_current_win()
 r = run("2")
-check(vim.api.nvim_get_current_win() == before_win, "关闭菜单后焦点应回到原窗口")
+check(vim.api.nvim_get_current_win() == before_win, "focus should return to the original window after closing")
 
 ----------------------------------------------------------------------
 -- 6d. ? 打开按键帮助浮窗
@@ -312,11 +312,11 @@ menu._read_key = function()
 end
 menu.select({ "alpha", "beta" }, { prompt = "Query: ", format_item = tostring }, function() end)
 menu._read_key = orig_rk_help
-check(help_wins[1] == nil, "按 ? 之前不应有帮助浮窗")
-check(help_wins[2] ~= nil, "按 ? 之后应出现帮助浮窗")
+check(help_wins[1] == nil, "no help popup before ?")
+check(help_wins[2] ~= nil, "help popup should appear after ?")
 local hl = help_wins[2] and table.concat(help_wins[2].lines, "\n") or ""
-check(hl:find("<Esc>", 1, true) ~= nil and hl:find("<CR>", 1, true) ~= nil, "帮助应列出按键说明")
-check(#vim.api.nvim_list_wins() >= 1, "帮助收起后不应残留窗口")
+check(hl:find("<Esc>", 1, true) ~= nil and hl:find("<CR>", 1, true) ~= nil, "help should list key bindings")
+check(#vim.api.nvim_list_wins() >= 1, "no window should remain after closing help")
 
 ----------------------------------------------------------------------
 -- 8. 大小写 / 多字节：兜底位置也必须跟 matchfuzzypos 一样是 0-based
@@ -325,18 +325,18 @@ check(#vim.api.nvim_list_wins() >= 1, "帮助收起后不应残留窗口")
 -- matchfuzzypos 是大小写敏感的（"FOO" 匹配不到 "foo bar"），所以大写查询走兜底；
 -- 兜底曾经把 find 的 1-based 位置塞进 positions，高亮整体偏一格。
 local up = menu.filter({ "foo bar" }, "FOO", tostring)
-check(#up == 1, "大写查询应命中 foo bar，实际 " .. #up .. " 个")
+check(#up == 1, "uppercase query should match foo bar, got " .. #up .. " matches")
 local up_pos = up[1] and table.concat(up[1].positions or {}, ",") or ""
-check(up_pos == "0,1,2", "兜底命中位置应为 0-based 字节偏移 0,1,2，实际 " .. up_pos)
+check(up_pos == "0,1,2", "fallback positions should be 0-based byte offsets 0,1,2, got " .. up_pos)
 
 local cjk = menu.filter({ "zhong 中文" }, "中文", tostring)
 check(
 	#cjk == 1 and cjk[1].positions[1] == 6,
-	"中文查询应命中并给出字符起始字节，实际 " .. vim.inspect(cjk[1] and cjk[1].positions)
+	"CJK query should match and report char-start bytes, got " .. vim.inspect(cjk[1] and cjk[1].positions)
 )
 check(
 	#(cjk[1] and cjk[1].positions or {}) == 2,
-	"中文命中不应把字符拆成字节，实际 " .. vim.inspect(cjk[1] and cjk[1].positions)
+	"CJK matches should not split chars into bytes, got " .. vim.inspect(cjk[1] and cjk[1].positions)
 )
 
 ----------------------------------------------------------------------
@@ -345,12 +345,12 @@ check(
 
 -- 导航模式按 1 选第 1 项（"b2"）；输入模式按 1 应过滤出 "a1"
 r = run("1", { "b2", "a1" })
-check(r.item == "b2", "导航模式按 1 应选中第 1 项，实际 " .. tostring(r.item))
+check(r.item == "b2", "pressing 1 in navigation mode should pick item 1, got " .. tostring(r.item))
 r = run("i" .. "1" .. kc("<CR>"), { "b2", "a1" })
-check(r.item == "a1", "输入模式按 1 应作为查询过滤而不是选中第 1 项，实际 " .. tostring(r.item))
+check(r.item == "a1", "pressing 1 in input mode should filter, not pick item 1, got " .. tostring(r.item))
 
 r = run("i" .. "中" .. kc("<BS>") .. "英" .. kc("<CR>"), { "中文", "英文" })
-check(r.item == "英文", "中文输入与 <BS> 退格应可用，实际 " .. tostring(r.item))
+check(r.item == "英文", "CJK input and <BS> should work, got " .. tostring(r.item))
 
 ----------------------------------------------------------------------
 -- 10. 超过 max_height 时滚动，选中项始终可见
@@ -398,20 +398,20 @@ for _, s in ipairs(seen) do
 		tall = true
 	end
 end
-check(#seen > 0, "应能采样到菜单浮窗")
-check(not tall, "浮窗高度不应超过 max_height=5")
+check(#seen > 0, "should be able to sample the menu popup")
+check(not tall, "popup height should not exceed max_height=5")
 local last_seen = seen[#seen]
 check(
 	last_seen and #last_seen.lines == 5,
-	"视口应只有 5 行，实际 " .. tostring(last_seen and #last_seen.lines)
+	"viewport should have exactly 5 rows, got " .. tostring(last_seen and #last_seen.lines)
 )
 check(
 	last_seen and last_seen.lines[5] and last_seen.lines[5]:find("item21", 1, true) ~= nil,
-	"第 21 项应滚入视口底部，实际 " .. tostring(last_seen and last_seen.lines[5])
+	"item 21 should scroll to the viewport bottom, got " .. tostring(last_seen and last_seen.lines[5])
 )
 check(
 	last_seen and last_seen.cursor[1] == 5,
-	"选中项应落在视口最后一行，实际 " .. vim.inspect(last_seen and last_seen.cursor)
+	"selected item should be on the last viewport row, got " .. vim.inspect(last_seen and last_seen.cursor)
 )
 
 ----------------------------------------------------------------------
@@ -450,21 +450,21 @@ end
 menu.select({ "a", "b" }, { prompt = "Anchor: " }, function() end)
 menu._read_key = orig_rk_anchor
 
-check(anchor.win ~= nil, "应打开菜单浮窗")
-check(want.row > line_start.row, "测试预设：光标应在折行后的屏幕行，实际 " .. vim.inspect(want))
+check(anchor.win ~= nil, "menu popup should open")
+check(want.row > line_start.row, "test precondition: cursor should be on a wrapped screen row, got " .. vim.inspect(want))
 check(
 	anchor.row == want.row,
-	("菜单应贴光标屏幕行 %d，实际 %s（行首在第 %d 行）"):format(
+	("menu should stick to cursor screen row %d, got %s (line start on row %d)"):format(
 		want.row,
 		tostring(anchor.row),
 		line_start.row
 	)
 )
-check(anchor.col == want.col, ("菜单应贴光标屏幕列 %d，实际 %s"):format(want.col, tostring(anchor.col)))
+check(anchor.col == want.col, ("menu should stick to cursor screen column %d, got %s"):format(want.col, tostring(anchor.col)))
 -- 宽度是自适应的（config.width 只是上限），比的是浮窗实际宽度
 check(
 	anchor.col + anchor.width <= vim.go.columns + 1,
-	("菜单不应超出右边界（col=%s, width=%d, columns=%d）"):format(
+	("menu should not exceed the right edge (col=%s, width=%d, columns=%d)"):format(
 		tostring(anchor.col),
 		tostring(anchor.width),
 		vim.go.columns
@@ -535,15 +535,15 @@ end
 local labeled = table.concat(marks_by_line[0] or {}, ",")
 -- 第 21 行同样是 "21 abc21"，文本列与第 1 行完全一致（这正是补齐序号的点）
 local unlabeled = table.concat(marks_by_line[20] or {}, ",")
-check(labeled == "4,5,6", "第 1 行高亮列应为 4,5,6，实际 " .. labeled)
-check(unlabeled == "4,5,6", "第 21 行高亮列也应为 4,5,6，实际 " .. unlabeled)
+check(labeled == "4,5,6", "row 1 highlight columns should be 4,5,6, got " .. labeled)
+check(unlabeled == "4,5,6", "row 21 highlight columns should also be 4,5,6, got " .. unlabeled)
 -- 快照时已输入 "abc"，处于输入模式：序号压成注释色，不冒充快捷键
-check(snap.label_hl[0] == "UiMenuLabelDim", "输入模式下序号应变暗，实际 " .. tostring(snap.label_hl[0]))
+check(snap.label_hl[0] == "UiMenuLabelDim", "index should dim in input mode, got " .. tostring(snap.label_hl[0]))
 
 for _, b in ipairs(vim.api.nvim_list_bufs()) do
 	check(
 		bufs_before[b] or not vim.api.nvim_buf_is_valid(b),
-		"关菜单后不应遗留 scratch buffer: " .. tostring(b)
+		"no scratch buffer should leak after closing: " .. tostring(b)
 	)
 end
 
@@ -560,7 +560,7 @@ menu._read_key = orig_rk_help
 for _, b in ipairs(vim.api.nvim_list_bufs()) do
 	check(
 		bufs_before[b] or not vim.api.nvim_buf_is_valid(b),
-		"关帮助浮窗后不应遗留 scratch buffer: " .. tostring(b)
+		"no scratch buffer should leak after closing help: " .. tostring(b)
 	)
 end
 
@@ -571,11 +571,11 @@ end
 local orig = vim.ui.select
 -- 默认不接管：只导出 M.select
 menu.setup({ max_height = 10 })
-check(vim.ui.select == orig, "默认 setup 不应替换 vim.ui.select")
+check(vim.ui.select == orig, "default setup should not replace vim.ui.select")
 -- 显式开启接管
 menu.setup({ max_height = 10, replace_select = true })
-check(menu.original_select ~= nil, "setup 应保留原始实现")
-check(vim.ui.select ~= orig, "setup{ replace_select = true } 后 vim.ui.select 应换成菜单实现")
+check(menu.original_select ~= nil, "setup should keep the original implementation")
+check(vim.ui.select ~= orig, "after setup{ replace_select = true }, vim.ui.select should be the menu")
 
 local via_ui = { called = 0 }
 feed("3")
@@ -583,7 +583,7 @@ vim.ui.select({ "one", "two", "three" }, { prompt = "Pick: " }, function(item)
 	via_ui.called = via_ui.called + 1
 	via_ui.item = item
 end)
-check(via_ui.called == 1 and via_ui.item == "three", "vim.ui.select 应走菜单并选中第 3 项")
+check(via_ui.called == 1 and via_ui.item == "three", "vim.ui.select should go through the menu and pick item 3")
 
 -- 空列表：立刻回调 nil，不弹窗
 local empty = { called = 0 }
@@ -591,7 +591,7 @@ vim.ui.select({}, {}, function(item)
 	empty.called = empty.called + 1
 	empty.item = item
 end)
-check(empty.called == 1 and empty.item == nil, "空列表应立刻回调 nil")
+check(empty.called == 1 and empty.item == nil, "empty list should call back nil immediately")
 
 vim.ui.select = orig
 
@@ -602,18 +602,18 @@ vim.ui.select = orig
 local five = { "a", "b", "c", "d", "e" }
 
 local r_gg = run(kc("<C-n>") .. kc("<C-n>") .. kc("<C-n>") .. "gg" .. kc("<CR>"), five)
-check(r_gg.item == "a", "下移 3 次后按 gg 应回到首项，实际 " .. tostring(r_gg.item))
+check(r_gg.item == "a", "after moving down 3 times, gg should return to first, got " .. tostring(r_gg.item))
 
 local r_G = run("G" .. kc("<CR>"), five)
-check(r_G.item == "e", "按 G 应选中末项，实际 " .. tostring(r_G.item))
+check(r_G.item == "e", "G should pick the last item, got " .. tostring(r_G.item))
 
 -- g 后接非 g：作废那个 g，后面的键按原语义处理（gj = 下移一次）
 local r_gj = run("g" .. "j" .. kc("<CR>"), five)
-check(r_gj.item == "b", "gj 应当作下移一次（g 不作数），实际 " .. tostring(r_gj.item))
+check(r_gj.item == "b", "gj should count as one move down (g ignored), got " .. tostring(r_gj.item))
 
 -- 小写 g 回车：没有 gg，仍停在当前项
 local r_g_cr = run(kc("<C-n>") .. "g" .. kc("<CR>"), five)
-check(r_g_cr.item == "b", "单个 g 后接回车应保持当前项，实际 " .. tostring(r_g_cr.item))
+check(r_g_cr.item == "b", "a single g then <CR> should keep the current item, got " .. tostring(r_g_cr.item))
 
 ----------------------------------------------------------------------
 -- 14. 索引模式：<C-g> + 数字 + <CR>
@@ -625,38 +625,38 @@ for i = 1, 40 do
 end
 
 local r_idx = run(kc("<C-g>") .. "2" .. "1" .. kc("<CR>"), many)
-check(r_idx.item == "item21", "索引模式敲 21 应选中第 21 项，实际 " .. tostring(r_idx.item))
+check(r_idx.item == "item21", "index mode 21 should pick item 21, got " .. tostring(r_idx.item))
 
 -- 越界时 <CR> 不选、也不关菜单；选中行停在「最后有效的那一项」（99 越界 → 停在 9）
 -- <Esc> 退回导航模式后 <CR> 选中的就是这一项
 local r_bad = run(kc("<C-g>") .. "9" .. "9" .. kc("<CR>") .. kc("<Esc>") .. kc("<CR>"), many)
-check(r_bad.item == "item09", "越界后 Esc 退出应选最后有效的第 9 项，实际 " .. tostring(r_bad.item))
+check(r_bad.item == "item09", "after out-of-range, Esc should pick the last valid item 9, got " .. tostring(r_bad.item))
 
 -- <BS> 删一位后重新生效；<C-u> 清空后敲新的也生效
 local r_bs = run(kc("<C-g>") .. "3" .. "9" .. kc("<BS>") .. kc("<CR>"), many)
-check(r_bs.item == "item03", "39 退格成 3 应选中第 3 项，实际 " .. tostring(r_bs.item))
+check(r_bs.item == "item03", "39 backspaced to 3 should pick item 3, got " .. tostring(r_bs.item))
 local r_cu = run(kc("<C-g>") .. "3" .. "9" .. kc("<C-u>") .. "7" .. kc("<CR>"), many)
-check(r_cu.item == "item07", "<C-u> 清空后敲 7 应选中第 7 项，实际 " .. tostring(r_cu.item))
+check(r_cu.item == "item07", "<C-u> then 7 should pick item 7, got " .. tostring(r_cu.item))
 
 -- 输入模式里 <C-g> 转入索引模式，序号作用于**过滤后**的结果
 local r_filtered = run("i" .. "m0" .. kc("<C-g>") .. "2" .. kc("<CR>"), { "m01", "x", "m02", "m03" })
-check(r_filtered.item == "m02", "过滤后索引应作用于过滤结果，实际 " .. tostring(r_filtered.item))
+check(r_filtered.item == "m02", "index should apply to filtered results, got " .. tostring(r_filtered.item))
 
 -- M-<pivot> 已移除：按 M-a 不再选第 10 项
 local r_ma = run(kc("<M-a>") .. kc("<CR>"), many)
-check(r_ma.item == "item01", "M-<pivot> 应已失效，实际 " .. tostring(r_ma.item))
+check(r_ma.item == "item01", "M-<pivot> should be gone, got " .. tostring(r_ma.item))
 
 ----------------------------------------------------------------------
 -- 15. 动画模式：opts.tick 超时推进帧号，format_item(item, frame) 拿到递增帧
 ----------------------------------------------------------------------
 -- 15a. spinner 助手：帧号取模、无帧时回退到 base / 第一帧、自定义帧序列
 local spin15 = menu.spinner()
-check(spin15(nil, "◐") == "◐", "无帧时应回退到 base")
-check(spin15(nil) == menu.frames[1], "无帧且没 base 时用第一帧")
-check(spin15(0) == menu.frames[1] and spin15(1) == menu.frames[2], "帧号应从第一帧开始")
-check(spin15(#menu.frames) == menu.frames[1], "帧号应对帧数取模（循环）")
+check(spin15(nil, "◐") == "◐", "should fall back to base without a frame")
+check(spin15(nil) == menu.frames[1], "should use the first frame without a frame or base")
+check(spin15(0) == menu.frames[1] and spin15(1) == menu.frames[2], "frame index should start at the first frame")
+check(spin15(#menu.frames) == menu.frames[1], "frame index should wrap around the frame count")
 local spin15b = menu.spinner({ "a", "b" })
-check(spin15b(3) == "b" and spin15b(nil, "x") == "x", "自定义帧序列应生效")
+check(spin15b(3) == "b" and spin15b(nil, "x") == "x", "custom frame sequences should work")
 
 local frames15 = {}
 local idx15 = 0
@@ -678,8 +678,8 @@ menu.select({ "busy", "idle" }, {
 	chosen15 = item
 end)
 menu._read_key = orig_rk15
-check(chosen15 == "busy", "动画模式仍能正常选中（实际 " .. tostring(chosen15) .. "）")
-check(#frames15 >= 6, "动画模式每帧都应重画，实际 format_item 调用 " .. #frames15 .. " 次")
+check(chosen15 == "busy", "animation mode should still pick normally (got " .. tostring(chosen15) .. ")")
+check(#frames15 >= 6, "animation mode should repaint every frame, format_item called " .. #frames15 .. " callbacks")
 local maxf15, monotone15 = 0, true
 for _, f in ipairs(frames15) do
 	if type(f) == "number" then
@@ -688,8 +688,8 @@ for _, f in ipairs(frames15) do
 		monotone15 = false
 	end
 end
-check(maxf15 >= 2, "帧号应递增（spinner 才会转），max=" .. maxf15)
-check(monotone15, "动画模式下 format_item 每次都应拿到数字帧号")
+check(maxf15 >= 2, "frame index should increase so the spinner turns, max=" .. maxf15)
+check(monotone15, "format_item should always get a numeric frame in animation mode")
 
 ----------------------------------------------------------------------
 -- 12. position = "center" 固定居中，不跟随光标
@@ -715,17 +715,17 @@ end
 menu.select({ "a", "b" }, { prompt = "Center: ", position = "center" }, function() end)
 menu._read_key = orig_rk_center
 
-check(centered ~= nil, "居中选择应打开浮窗")
+check(centered ~= nil, "centered select should open a popup")
 if centered then
 	local want_row = math.floor((vim.go.lines - centered.height) / 2) + 1
 	local want_col = math.floor((vim.go.columns - centered.width) / 2)
 	check(
 		centered.row == want_row,
-		("菜单应固定在屏幕中间行（want=%d got=%d）"):format(want_row, centered.row)
+		("menu should be fixed on the center row (want=%d got=%d)"):format(want_row, centered.row)
 	)
 	check(
 		centered.col == want_col,
-		("菜单应固定在屏幕中间列（want=%d got=%d）"):format(want_col, centered.col)
+		("menu should be fixed on the center column (want=%d got=%d)"):format(want_col, centered.col)
 	)
 end
 
@@ -748,8 +748,8 @@ menu.select({ "a", "b" }, {
 	selected_tab = true
 end)
 menu._read_key = orig_rk_tab
-check(switched, "按 <Tab> 应调用 on_tab")
-check(not selected_tab, "按 <Tab> 不应触发选择回调")
+check(switched, "<Tab> should call on_tab")
+check(not selected_tab, "<Tab> should not trigger the selection callback")
 
 ----------------------------------------------------------------------
 -- 收尾
@@ -757,7 +757,7 @@ check(not selected_tab, "按 <Tab> 不应触发选择回调")
 
 if #fails == 0 then
 	print(
-		"ok: 浮窗选择菜单（过滤/标签/键位/取消/单飞/滚动/锚点/接管 vim.ui.select）符合预期"
+		"ok: popup select menu (filter/labels/keys/cancel/single-flight/scroll/anchor/vim.ui.select takeover) behaves as expected"
 	)
 	vim.cmd("qall!")
 end
@@ -765,5 +765,5 @@ end
 for _, msg in ipairs(fails) do
 	io.stderr:write("FAIL " .. msg .. "\n")
 end
-io.stderr:write(("%d 项失败\n"):format(#fails))
+io.stderr:write(("%d checks failed\n"):format(#fails))
 vim.cmd("cq")

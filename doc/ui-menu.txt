@@ -3,47 +3,48 @@
 ==============================================================================
 CONTENTS                                                    *ui-menu*
 
-1. 安装 ................................ |ui-menu-install|
-2. 配置 ................................ |ui-menu-config|
+1. Installation ........................ |ui-menu-install|
+2. Configuration ....................... |ui-menu-config|
 3. API ................................. |ui-menu-api|
-4. 高亮 ................................ |ui-menu-highlights|
+4. Highlights .......................... |ui-menu-highlights|
 
 ==============================================================================
-1. 安装                                                     *ui-menu-install*
+1. Installation                                             *ui-menu-install*
 
 >lua
   require("ui_menu").setup({ replace_select = true })
 <
-`replace_select` 默认 false，只导出 `select()`；true 才接管 |vim.ui.select()|。
-需要在其它插件的 config 调用 vim.ui.select 之前 setup。
+`replace_select` defaults to false, which only exports `select()`; set it to
+true to take over |vim.ui.select()|. Setup must happen before other plugins'
+config calls vim.ui.select.
 
 ==============================================================================
-2. 配置                                                     *ui-menu-config*
+2. Configuration                                            *ui-menu-config*
 
-  width (number)          最大宽度，默认 64
-  min_width (number)      最小宽度，默认 30
-  max_height (number)     最多显示行数，默认 14
-  border (string)         边框样式，默认 "rounded"
-  tick (number)           动画帧间隔 ms，默认 90
-  replace_select (bool)   是否接管 vim.ui.select，默认 false
-  should_replace (fun)    返回 false 时交给原实现
+  width (number)          maximum width, default 64
+  min_width (number)      minimum width, default 30
+  max_height (number)     maximum visible rows, default 14
+  border (string)         border style, default "rounded"
+  tick (number)           animation frame interval in ms, default 90
+  replace_select (bool)   take over vim.ui.select, default false
+  should_replace (fun)    return false to fall back to the original implementation
 
 ==============================================================================
 3. API                                                        *ui-menu-api*
 
-  select(items, opts, on_choice)      同 vim.ui.select，返回 boolean
-  spinner(frames?)                    返回 fun(frame?, base?)
-  frames                              默认动画帧
-  config                              当前配置
-  original_select                     接管前的 vim.ui.select
+  select(items, opts, on_choice)      same as vim.ui.select, returns boolean
+  spinner(frames?)                    returns fun(frame?, base?)
+  frames                              default animation frames
+  config                              current configuration
+  original_select                     vim.ui.select before the takeover
 
-opts.tick = true|number 开启动画，format_item(item, frame)。
-opts.position = "center" 固定屏幕居中，不跟随光标。
-opts.on_tab = fun() 菜单里按 <Tab> 时关闭菜单并调用它。
-format_item 的第二返回值 virt_text 挂到行尾。
-结构化条目支持 name/text/label + icon/icon_hl/name_hl。
+opts.tick = true|number enables animation, format_item(item, frame).
+opts.position = "center" pins to screen center instead of following the cursor.
+opts.on_tab = fun() closes the menu and calls it when <Tab> is pressed.
+The second return value of format_item, virt_text, is shown at end of line.
+Structured items support name/text/label + icon/icon_hl/name_hl.
 
 ==============================================================================
-4. 高亮                                                  *ui-menu-highlights*
+4. Highlights                                           *ui-menu-highlights*
 
   UiMenuLabel  UiMenuLabelDim  UiMenuIndex  UiMenuError  UiMenuMatch
