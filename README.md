@@ -12,10 +12,18 @@ optional takeover of `vim.ui.select`.
 
 ## Installation
 
+With `vim.pack` (Neovim 0.12+):
+
 ```lua
--- works with vim.pack / lazy.nvim; setup is the key part
+vim.pack.add({ "https://github.com/huayue5201/ui-menu.nvim" })
+require("ui_menu").setup({ replace_select = true })
+```
+
+With lazy.nvim:
+
+```lua
 {
-  dir = "~/neovim-plugins/ui-menu.nvim",
+  "huayue5201/ui-menu.nvim",
   priority = 999, -- must run before other plugins' config takes over vim.ui.select
   config = function()
     require("ui_menu").setup({ replace_select = true })
