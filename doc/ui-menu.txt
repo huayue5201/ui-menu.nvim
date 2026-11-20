@@ -26,6 +26,8 @@ config calls vim.ui.select.
   max_height (number)     maximum visible rows, default 14
   border (string)         border style, default "rounded"
   tick (number)           animation frame interval in ms, default 90
+  mouse (bool)            click a row to pick, wheel to move, right click to
+                          cancel, default true
   replace_select (bool)   take over vim.ui.select, default false
   should_replace (fun)    return false to fall back to the original implementation
 
@@ -44,7 +46,18 @@ opts.on_tab = fun() closes the menu and calls it when <Tab> is pressed.
 The second return value of format_item, virt_text, is shown at end of line.
 Structured items support name/text/label + icon/icon_hl/name_hl.
 
+Mouse (default on, |ui-menu-config|.mouse): clicking a row picks it, the wheel
+moves the selection, right click cancels, clicking the input box enters input
+mode. Positions are resolved from the mouse event itself, so it also works
+while the input window is the current window.
+
 ==============================================================================
 4. Highlights                                           *ui-menu-highlights*
 
-  UiMenuLabel  UiMenuLabelDim  UiMenuIndex  UiMenuError  UiMenuMatch
+  UiMenuNormal  UiMenuSel  UiMenuBorder  UiMenuTitle
+  UiMenuLabel   UiMenuLabelDim  UiMenuIndex  UiMenuError  UiMenuMatch
+
+All groups link to regular ones (Pmenu, PmenuSel, FloatBorder, Title,
+Identifier, Comment, Number, DiagnosticError, Special) with `default = true`,
+so they follow the colorscheme, and are re-linked on |ColorScheme|. Override any
+of them to restyle the menu.

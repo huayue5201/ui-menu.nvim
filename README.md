@@ -49,6 +49,7 @@ require("ui_menu").setup({
   max_height = 14,
   border = "rounded",
   tick = 90,
+  mouse = true,           -- click a row to pick, wheel to move, right click to cancel
   replace_select = false, -- true = take over vim.ui.select
   should_replace = nil,   -- fun(items, opts): boolean? only used when taking over
 })
@@ -75,10 +76,18 @@ Keys (while the menu is open): `j/k/<Down>/<Up>/<C-n>/<C-p>` to move, `gg/G` for
 first/last, `1-9` to pick directly, `i/f//` to start typing, `<C-g>` for index
 mode, `?` for help, `<CR>` to confirm, `Esc/q` to cancel.
 
+Mouse: click a row to pick it, wheel to move, right click to cancel, click the
+input box to start typing. Disable with `mouse = false`.
+
 ## Highlights
 
-`UiMenuLabel`, `UiMenuLabelDim`, `UiMenuIndex`, `UiMenuError`, `UiMenuMatch`;
-all link to regular groups with `default = true` and can be overridden by colorschemes.
+`UiMenuNormal`, `UiMenuSel`, `UiMenuBorder`, `UiMenuTitle`, `UiMenuLabel`,
+`UiMenuLabelDim`, `UiMenuIndex`, `UiMenuError`, `UiMenuMatch`.
+
+All link to regular groups (`Pmenu`, `PmenuSel`, `FloatBorder`, `Title`, ...)
+with `default = true`, so colors follow the colorscheme; they are re-linked on
+`ColorScheme` so `:hi clear`-ing themes still work. Override any of them to
+restyle the menu.
 
 ## Scope vs. pickers
 

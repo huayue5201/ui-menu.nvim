@@ -74,6 +74,7 @@ M.config = {
 	max_height = 14, -- 视口最多显示多少项（超出后滚动）
 	border = "rounded",
 	tick = 90, -- 动画帧间隔（毫秒）：opts.tick = true 时用它
+	mouse = true, -- 鼠标：点选条目 / 点输入框 / 滚轮 / 右键取消
 	replace_select = false, -- true = 接管 vim.ui.select（全局副作用，默认关闭）
 	should_replace = nil, -- fun(items, opts): boolean?, 仅接管时生效；返回 false 则交给原实现
 }
@@ -107,6 +108,38 @@ end
 M._busy = false
 
 local ns = api.nvim_create_namespace("ui-menu")
+
+-- 插件自带的高亮组。**全部用 link + default**：颜色跟着 colorscheme 走，
+-- 用户想改也只需覆盖下面这些组，不用去碰具体颜色。
+-- ColorScheme 之后重挂一次：多数主题会 `hi clear`，高亮组会被清掉，菜单就变成白底。
+local HL_DEFAULTS = {
+	UiMenuNormal = "Pmenu",
+	UiMenuSel = "PmenuSel",
+	UiMenuBorder = "FloatBorder",
+	UiMenuTitle = "Title",
+	UiMenuLabel = "Identifier",
+	UiMenuLabelDim = "Comment",
+	UiMenuIndex = "Number",
+	UiMenuError = "DiagnosticError",
+	UiMenuMatch = "Special",
+}
+
+function M.setup_highlights()
+	for group, link in pairs(HL_DEFAULTS) do
+		api.nvim_set_hl(0, group, { link = link, default = true })
+	end
+	-- 只在第一次装 ColorScheme 钩子，避免每次 setup 叠一个
+	if M._hl_aug then
+		return
+	end
+	M._hl_aug = api.nvim_create_augroup("ui_menu_highlights", { clear = true })
+	api.nvim_create_autocmd("ColorScheme", {
+		group = M._hl_aug,
+		callback = function()
+			M.setup_highlights()
+		end,
+	})
+end
 
 -- 输入框前缀：❯ 是 3 字节，光标列按字节算（索引模式的 " # " 用 #prefix 算，不写死）
 local INPUT_PREFIX = " ❯ "
@@ -387,7 +420,7 @@ local function render_help(state)
 		end
 		api.nvim_set_option_value(
 			"winhl",
-			"Normal:Pmenu,FloatBorder:FloatBorder,FloatTitle:Title",
+			"Normal:UiMenuNormal,FloatBorder:UiMenuBorder,FloatTitle:UiMenuTitle",
 			{ win = state.help_win }
 		)
 	else
@@ -479,7 +512,11 @@ local function render_input(state)
 			pcall(api.nvim_set_option_value, o[1], o[2], { win = state.input_win })
 		end
 		pcall(api.nvim_set_option_value, "scrolloffpad", 0, { win = state.input_win })
-		api.nvim_set_option_value("winhl", "Normal:Pmenu,FloatBorder:FloatBorder", { win = state.input_win })
+		api.nvim_set_option_value(
+			"winhl",
+			"Normal:UiMenuNormal,FloatBorder:UiMenuBorder",
+			{ win = state.input_win }
+		)
 	else
 		api.nvim_win_set_config(state.input_win, opts)
 	end
@@ -649,7 +686,11 @@ local function render(state)
 		-- 关掉 cursorline、close() 里再开回来，正是那次闪烁的来源，已删除。
 		-- enter = true：成为当前窗口，终端才会在查询行画真光标（关窗时切回 origin_win）
 		state.win = api.nvim_open_win(state.buf, true, win_opts)
-		api.nvim_set_option_value("winhl", "Normal:Pmenu,FloatBorder:FloatBorder,FloatTitle:Title", { win = state.win })
+		api.nvim_set_option_value(
+			"winhl",
+			"Normal:UiMenuNormal,FloatBorder:UiMenuBorder,FloatTitle:UiMenuTitle",
+			{ win = state.win }
+		)
 		api.nvim_set_option_value("wrap", false, { win = state.win })
 		-- 浮窗必须清掉 statuscolumn / signcolumn / foldcolumn：
 		-- statuscol.nvim 的 'statuscolumn' 是全局表达式 %{%v:lua...%}，浮窗也会继承它，
@@ -726,14 +767,14 @@ local function render(state)
 			end
 		end
 	end
-	-- 选中行用 extmark 铺满整行，不用浮窗自己的 'cursorline'：那样每次移动
-	-- 都靠窗口选项变化来重画，且高亮行会多出一条与 extmark 不一致的竖线
+	-- 选中行用 line_hl_group 铺满整个窗口宽度：hl_group + hl_eol 只覆盖到行文本末尾
+	-- （实测 hl_eol 在浮窗里并不向窗口右边补色，看起来就是「只高亮了那几个字」）。
+	-- 也不用浮窗自己的 'cursorline'：那样每次移动都靠窗口选项变化来重画，
+	-- 且高亮行会多出一条与 extmark 不一致的竖线。
 	local sel_line = math.max(1, math.min(state.sel - top + 1, height))
 	if lines[sel_line] then
 		api.nvim_buf_set_extmark(state.buf, ns, sel_line - 1, 0, {
-			end_col = #lines[sel_line],
-			hl_group = "PmenuSel",
-			hl_eol = true,
+			line_hl_group = "UiMenuSel",
 			priority = 50,
 		})
 	end
@@ -919,6 +960,38 @@ function M.select(items, opts, on_choice)
 		end
 	end
 
+	---鼠标点到哪个窗口的哪一行。
+	---getchar() 不展开映射，所以拿不到「正常模式处理鼠标」后的 mouse_win；但 getmousepos()
+	---的 screenrow/screencol 就是事件本身的坐标，拿它和各浮窗的实际屏幕矩形比一下即可。
+	---@return integer|nil win 命中的窗口（菜单/输入框/帮助）
+	---@return integer|nil row 窗口内 1-based 行号
+	local function mouse_target()
+		if not M.config.mouse then
+			return nil
+		end
+		local mp = fn.getmousepos()
+		if not mp or not mp.screenrow or not mp.screencol then
+			return nil
+		end
+		for _, w in ipairs({ state.win, state.input_win, state.help_win }) do
+			if w and api.nvim_win_is_valid(w) then
+				local ok, sp = pcall(fn.screenpos, w, 1, 1)
+				if ok and sp and sp.row and sp.row > 0 then
+					local h, wd = api.nvim_win_get_height(w), api.nvim_win_get_width(w)
+					if
+						mp.screenrow >= sp.row
+						and mp.screenrow < sp.row + h
+						and mp.screencol >= sp.col
+						and mp.screencol < sp.col + wd
+					then
+						return w, mp.screenrow - sp.row + 1
+					end
+				end
+			end
+		end
+		return nil
+	end
+
 	local ok, err = pcall(function()
 		while true do
 			-- 窗口没了就别再画、也别再吃键
@@ -964,6 +1037,29 @@ function M.select(items, opts, on_choice)
 					end
 				elseif state.help then
 					state.help = false -- 帮助开着时任何其他键都只收帮助
+				elseif kl == "<leftmouse>" or kl == "<2-leftmouse>" then
+					-- 点哪一行就选哪一行并确认（单/双击一样：菜单里没有父子展开之类的结果）
+					local mw, mrow = mouse_target()
+					if mw == state.win and mrow then
+						if pick((state.top or 1) + mrow - 1) then
+							break
+						end
+					elseif mw == state.input_win then
+						state.mode = "input" -- 点输入框 = 直接进输入模式
+					elseif mw == state.help_win then
+						state.help = false
+					end
+				elseif kl == "<scrollwheelup>" or kl == "<scrollwheeldown>" then
+					-- 滚轮：菜单开着时当前窗口是输入框，两个窗口上的滚轮都当作翻列表
+					local mw = mouse_target()
+					if mw == state.win or mw == state.input_win then
+						move(kl == "<scrollwheelup>" and -1 or 1)
+					end
+				elseif kl == "<rightmouse>" then
+					local mw = mouse_target()
+					if mw == state.win or mw == state.input_win then
+						break -- 右键（在菜单/输入框上）= 取消
+					end
 				elseif kl == "<cr>" or kl == "<nl>" then
 					if state.mode == "index" then
 						local idx = tonumber(state.num)
@@ -1086,11 +1182,9 @@ function M.setup(opts)
 	elseif vim.ui.select == select_wrapper then
 		vim.ui.select = M.original_select
 	end
-	api.nvim_set_hl(0, "UiMenuLabel", { link = "Identifier", default = true })
-	api.nvim_set_hl(0, "UiMenuLabelDim", { link = "Comment", default = true })
-	api.nvim_set_hl(0, "UiMenuIndex", { link = "Number", default = true })
-	api.nvim_set_hl(0, "UiMenuError", { link = "DiagnosticError", default = true })
-	api.nvim_set_hl(0, "UiMenuMatch", { link = "Special", default = true })
+	M.setup_highlights()
 end
+
+M.setup_highlights()
 
 return M

@@ -114,6 +114,87 @@ r = run(kc("<M-s>") .. kc("<CR>"), { "a", "b", "c", "d", "e", "f", "g", "h", "i"
 check(r.item == "a", "M-<pivot> should be gone (stays on first item), got " .. tostring(r.item))
 
 ----------------------------------------------------------------------
+-- 3b. 鼠标：点行即选、滚轮翻、点输入框进输入模式、右键取消
+----------------------------------------------------------------------
+
+---当前菜单浮窗（buffer filetype 是 ui-menu 的那个）
+local function menu_win()
+	for _, w in ipairs(vim.api.nvim_list_wins()) do
+		if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "ui-menu" then
+			return w
+		end
+	end
+end
+
+---@param win integer
+---@param line integer 1-based buffer line
+---@return integer row 0-based screen row
+---@return integer col 0-based screen col
+local function cell(win, line)
+	local sp = vim.fn.screenpos(win, line, 1)
+	return sp.row - 1, sp.col
+end
+
+---点/滚发生在菜单已经画出来之后才能算坐标，所以鼠标事件只能在第一次读键时塞进输入队列；
+---之后再 feed 后续按键（顺序必须这样：feed 在 select 之前会把 <CR> 排在鼠标事件前面）。
+---@param event fun() 生成鼠标事件
+---@param keys? string 鼠标事件之后要敲的键
+local function run_mouse(event, opts)
+	opts = opts or {}
+	local orig = menu._read_key
+	local step = 0
+	local at = opts.at or 1
+	local got = { called = 0 }
+	menu._read_key = function()
+		step = step + 1
+		if step == 1 and opts.pre then
+			feed(opts.pre)
+		end
+		if step == at then
+			event()
+		elseif step == at + 1 and opts.after then
+			-- 必须等鼠标事件被取走之后再 feed：typeahead 里的普通键会排在鼠标事件前面
+			feed(opts.after)
+		end
+		return orig()
+	end
+	menu.select(items, {}, function(item, idx)
+		got.called = got.called + 1
+		got.item, got.idx = item, idx
+	end)
+	menu._read_key = orig
+	return got
+end
+
+r = run_mouse(function()
+	local row, col = cell(menu_win(), 2)
+	vim.api.nvim_input_mouse("left", "press", "", 0, row, col)
+end)
+check(r.called == 1 and r.item == "beta", "clicking row 2 should pick beta, got " .. tostring(r.item))
+
+r = run_mouse(function()
+	local row, col = cell(menu_win(), 1)
+	vim.api.nvim_input_mouse("wheel", "down", "", 0, row, col)
+end, { after = kc("<CR>") })
+check(r.item == "beta", "wheel down should move to beta, got " .. tostring(r.item))
+
+-- 输入模式下当前窗口是输入框，此时点菜单仍然要能选中（位置按事件坐标算，不看当前窗口）
+r = run_mouse(
+	function()
+		local row, col = cell(menu_win(), 2)
+		vim.api.nvim_input_mouse("left", "press", "", 0, row, col)
+	end,
+	{ pre = "ia", at = 3 }
+)
+check(r.item == "beta", "clicking the menu while the input box is current should pick beta, got " .. tostring(r.item))
+
+r = run_mouse(function()
+	local row, col = cell(menu_win(), 1)
+	vim.api.nvim_input_mouse("right", "press", "", 0, row, col)
+end)
+check(r.called == 1 and r.item == nil, "right click should cancel (nil, nil)")
+
+----------------------------------------------------------------------
 -- 5b. 提示文本在边框中间（含输入模式标记）
 ----------------------------------------------------------------------
 
@@ -750,6 +831,24 @@ end)
 menu._read_key = orig_rk_tab
 check(switched, "<Tab> should call on_tab")
 check(not selected_tab, "<Tab> should not trigger the selection callback")
+
+----------------------------------------------------------------------
+-- 20. 高亮组：跟着 colorscheme 走，ColorScheme 之后仍在
+----------------------------------------------------------------------
+
+local sel_hl = vim.api.nvim_get_hl(0, { name = "UiMenuSel" })
+check(sel_hl.link == "PmenuSel", "UiMenuSel should link to PmenuSel, got " .. tostring(sel_hl.link))
+check(
+	vim.api.nvim_get_hl(0, { name = "UiMenuNormal" }).link == "Pmenu",
+	"UiMenuNormal should link to Pmenu"
+)
+-- 模拟主题切换（多数主题 `hi clear` 会把非默认组清掉），插件要自己重新挂回 link
+vim.cmd("hi clear")
+vim.api.nvim_exec_autocmds("ColorScheme", {})
+check(
+	vim.api.nvim_get_hl(0, { name = "UiMenuSel" }).link == "PmenuSel",
+	"UiMenuSel should be re-linked after a ColorScheme event"
+)
 
 ----------------------------------------------------------------------
 -- 收尾
